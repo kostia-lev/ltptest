@@ -22,8 +22,8 @@ This repository contains a backend written in Go and a frontend in React that re
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
-   cd <repository-directory>
+   git clone https://github.com/kostia-lev/ltptest.git
+   cd ltptest
 
 2. Build and start the Docker containers:
    ```bash
