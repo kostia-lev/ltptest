@@ -108,6 +108,7 @@ func setCachedLTP(pair string, value float64) {
 func ltpHandler(w http.ResponseWriter, r *http.Request) {
 	pairsParam := r.URL.Query().Get("pairs")
 	var pairs []string
+	var wg sync.WaitGroup
 
 	if pairsParam == "" {
 		pairs = []string{"BTCUSD", "BTCCHF", "BTCEUR"}
@@ -117,16 +118,24 @@ func ltpHandler(w http.ResponseWriter, r *http.Request) {
 
 	ltpData := []LTPResponse{}
 	for _, pair := range pairs {
-		amount, err := fetchLTP(pair)
-		if err != nil {
-			log.Printf("Error fetching LTP for %s: %v", pair, err)
-			continue
-		}
-		ltpData = append(ltpData, LTPResponse{
-			Pair:   pair,
-			Amount: amount,
-		})
+		wg.Add(1)
+		var amount float64
+		var err error
+		pair := pair // new var per iteration
+		go func() {
+			defer wg.Done()
+			amount, err = fetchLTP(pair)
+			if err != nil {
+				log.Printf("Error fetching LTP for %s: %v, %v", pair, err, pairs)
+			} else {
+				ltpData = append(ltpData, LTPResponse{
+					Pair:   pair,
+					Amount: amount,
+				})
+			}
+		}()
 	}
+	wg.Wait()
 
 	response := APIResponse{LTP: ltpData}
 	w.Header().Set("Content-Type", "application/json")

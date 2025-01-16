@@ -32,11 +32,13 @@ This repository contains a backend written in Go and a frontend in React that re
 3. Access the frontend:
 
    The React frontend will be available at http://localhost:3000.
-   
 
-
-3. Access the backend:
+4. Access the backend:
 
    The React frontend will be available at http://localhost:8082.
-   Example API endpoint: http://localhost:8080/api/v1/ltp?pairs=BTCUSD,BTCCHF
+   Example API endpoint: http://localhost:8082/api/v1/ltp?pairs=BTCUSD,BTCCHF
+
+4. To run backend tests:
+   ```bash
+   cd backend && go test -v
    
