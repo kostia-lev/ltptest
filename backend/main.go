@@ -28,9 +28,8 @@ type cacheItem struct {
 }
 
 var (
-	cache     = sync.Map{}
-	cacheTTL  = 60 * time.Second // Cache duration: 60 seconds
-	cacheLock = sync.Mutex{}
+	cache    = sync.Map{}
+	cacheTTL = 60 * time.Second // Cache duration: 60 seconds
 )
 
 func fetchLTP(pair string) (float64, error) {
@@ -77,9 +76,6 @@ func fetchLTP(pair string) (float64, error) {
 }
 
 func getCachedLTP(pair string) (float64, bool) {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-
 	item, ok := cache.Load(pair)
 	if !ok {
 		return 0, false
@@ -96,9 +92,6 @@ func getCachedLTP(pair string) (float64, bool) {
 }
 
 func setCachedLTP(pair string, value float64) {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-
 	cache.Store(pair, cacheItem{
 		value:      value,
 		expiration: time.Now().Add(cacheTTL),
@@ -108,7 +101,6 @@ func setCachedLTP(pair string, value float64) {
 func ltpHandler(w http.ResponseWriter, r *http.Request) {
 	pairsParam := r.URL.Query().Get("pairs")
 	var pairs []string
-	var wg sync.WaitGroup
 
 	if pairsParam == "" {
 		pairs = []string{"BTCUSD", "BTCCHF", "BTCEUR"}
@@ -116,25 +108,34 @@ func ltpHandler(w http.ResponseWriter, r *http.Request) {
 		pairs = strings.Split(pairsParam, ",")
 	}
 
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
 	ltpData := []LTPResponse{}
+
 	for _, pair := range pairs {
 		wg.Add(1)
-		var amount float64
-		var err error
-		pair := pair // new var per iteration
+		pair := pair // new variable for each iteration
 		go func() {
 			defer wg.Done()
-			amount, err = fetchLTP(pair)
+
+			amount, err := fetchLTP(pair)
 			if err != nil {
-				log.Printf("Error fetching LTP for %s: %v, %v", pair, err, pairs)
-			} else {
-				ltpData = append(ltpData, LTPResponse{
-					Pair:   pair,
-					Amount: amount,
-				})
+				log.Printf("Error fetching LTP for %s: %v", pair, err)
+				return
 			}
+
+			response := LTPResponse{
+				Pair:   pair,
+				Amount: amount,
+			}
+
+			// Safely append to ltpData
+			mutex.Lock()
+			ltpData = append(ltpData, response)
+			mutex.Unlock()
 		}()
 	}
+
 	wg.Wait()
 
 	response := APIResponse{LTP: ltpData}
